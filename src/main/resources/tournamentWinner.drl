@@ -1,0 +1,71 @@
+package tournament
+
+import com.model.Match;
+import com.model.MatchRecord;
+
+global com.model.TournamentSummary tournamentSummary;
+
+dialect "java"
+
+declare MatchId
+	mId: String
+end
+
+
+rule "PrintMatchRecord"
+    no-loop true
+when
+    $mr : MatchRecord() from entry-point "matchRecordStream"
+then
+    System.out.println("PrintMatchRecord : Match Record : "+$mr);
+end
+
+
+rule "FilterOutMatches"
+    no-loop true
+    salience 100
+when
+    $mr : MatchRecord($matchId : matchId) from entry-point "matchRecordStream"
+    not(exists MatchId(mId == $matchId))
+then
+    System.out.println("FilterOutMatches : New Match Id Found  : "+$matchId);
+    insert( new MatchId($matchId));
+    System.out.println("FilterOutMatches : New Match Id Inserted  : "+$matchId);
+end
+
+
+rule "printDifferentMatchIds"
+when
+     $mId : MatchId()
+then
+    System.out.println("printDifferentMatchIds : Match Ids => "+$mId.getMId());
+end
+
+
+rule "CreateMatchesSummary"
+    no-loop true
+    salience -200
+when
+    $matchId : MatchId()
+    $mrTeam1 : MatchRecord(matchId == $matchId.getMId()) from entry-point "matchRecordStream"
+    //$mrTeam2 : MatchRecord(matchId == $matchId.getMId(), id != $mrTeam1.getId()) from entry-point "matchRecordStream"
+    not(exists (Match(id == $matchId.getMId()) from entry-point "matchStream"))
+then
+    //System.out.println("CreateMatchesSummary : Creating the match summary for the match  : "+$matchId.getMId() + ", team1 : " + $mrTeam1.getId() + ", team2 : "+$mrTeam2.getId());
+    System.out.println("CreateMatchesSummary : Creating the match summary for the match  : "+$matchId.getMId() + ", team1 : " + $mrTeam1.getId());
+    Match match = new Match();
+    match.setId($matchId.getMId());
+     /*
+    match.setTeam1();
+    match.setTeam2();
+    match.setTeam1_score();
+    match.setTeam2_score();
+    match.setWinnerTeam();
+       */
+    entryPoints["matchStream"].insert(match);
+end
+
+rule "CreateTournamentSummary"
+when
+then
+end
